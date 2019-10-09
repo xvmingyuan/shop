@@ -1,0 +1,38 @@
+server:
+  port: 8085
+spring:
+  application:
+    name: dubbo-pay-provider
+  datasource:
+    name: shop
+    url: jdbc:mysql://localhost:3306/shop?useUnicode=true&characterEncoding=UTF-8
+    username: root
+    password: root
+  dubbo:
+    application:            #应用配置，用于配置当前应用信息，不管该应用是提供者还是消费者。
+      id: dubbo-pay-provider
+      name: dubbo-pay-provider
+    registry:                 #注册中心配置，用于配置连接注册中心相关信息。
+      address: zookeeper://192.168.1.129:2181;zookeeper://192.168.1.130:2181;zookeeper://192.168.1.131:2181
+    protocol:     #协议配置，用于配置提供服务的协议信息，协议由提供方指定，消费方被动接受。
+      name: dubbo
+      port: 20884
+#    scan: com.dubboProvide.dubboProvide.service  #服务暴露与发现消费所在的package
+# mybatis配置
+mybatis:
+  mapper-locations: classpath:/com.xmy.mapper/*.xml
+  type-aliases-package: com.xmy.pojo
+#RocketMQ配置
+rocketmq:
+  name-server: 192.168.1.137:9876
+  producer:
+    group: payProducerGroup
+    send-message-timeout: 50000
+# 自定义消息参数
+mq:
+  pay:
+    consumer:
+      group:
+        name: pay_payTopic_group
+    topic: payTopic
+    tag: paid

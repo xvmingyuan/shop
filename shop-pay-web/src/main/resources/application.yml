@@ -1,0 +1,25 @@
+server:
+  host: http://localhost
+  servlet:
+    path: /pay-web
+  port: 8090
+spring:
+  application:
+    name: dubbo-pay-consumer
+  dubbo:
+    application:            #应用配置，用于配置当前应用信息，不管该应用是提供者还是消费者。
+      id: dubbo-pay-consumer
+      name: dubbo-pay-consumer
+    registry:                 #注册中心配置，用于配置连接注册中心相关信息。
+      address: zookeeper://192.168.1.129:2181;zookeeper://192.168.1.130:2181;zookeeper://192.168.1.131:2181
+    protocol:     #协议配置，用于配置提供服务的协议信息，协议由提供方指定，消费方被动接受。
+      name: dubbo
+      port: 20886
+#    scan: com.dubboProvide.dubboProvide.service  #服务暴露与发现消费所在的package
+shop:
+  pay:
+    port: 8090
+    baseURI: ${server.host}:${shop.pay.port}${server.servlet.path}
+    createPayment: /pay/createPayment
+    callbackPayment: /pay/callbackPayment
+
