@@ -12,8 +12,8 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
 /**
- *
  * @author xmy
  * @date 2019-10-09 21:42
  */
@@ -45,7 +45,7 @@ public class CancelMQListener implements RocketMQListener<MessageExt> {
                 couponMapper.updateByPrimaryKey(coupon);
                 log.info("回退优惠券成功");
             } else {
-                log.info("非使用优惠券");
+                log.info("未使用优惠券");
             }
         } catch (Exception e) {
             e.printStackTrace();

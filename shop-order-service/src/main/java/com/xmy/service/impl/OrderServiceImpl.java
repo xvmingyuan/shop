@@ -71,7 +71,7 @@ public class OrderServiceImpl implements IOrderService {
             // 3 扣减库存
             reduceGoodsNum(order);
             // 4 扣减优惠券
-            updateCouponStatus(order);
+            reduceCouponStatus(order);
             // 5 使用余额
             reduceMoneyPaid(order);
 
@@ -209,9 +209,12 @@ public class OrderServiceImpl implements IOrderService {
      *
      * @param order
      */
-    private void updateCouponStatus(ShopOrder order) {
+    private void reduceCouponStatus(ShopOrder order) {
         if (order.getCouponId() != null) {
             ShopCoupon coupon = couponService.findOne(order.getCouponId());
+            if (coupon.getIsUsed().intValue() == ShopCode.SHOP_COUPON_ISUSED.getCode().intValue()) {
+                CastException.cast(ShopCode.SHOP_COUPON_ISUSED);
+            }
             coupon.setOrderId(order.getOrderId());
             coupon.setIsUsed(ShopCode.SHOP_COUPON_ISUSED.getCode());
             coupon.setUsedTime(new Date());
@@ -227,7 +230,7 @@ public class OrderServiceImpl implements IOrderService {
     }
 
     /**
-     * 扣减库存
+     * 扣减库存 (存在并发问题,使用数据库乐观锁解决,方案有待提升,)
      *
      * @param order
      */
@@ -270,6 +273,12 @@ public class OrderServiceImpl implements IOrderService {
         log.info("校验订单通过");
     }
 
+    /**
+     * 生成预订单
+     *
+     * @param order
+     * @return
+     */
     private Long savePreOrder(ShopOrder order) {
         //1 设置订单状态为不可见
         order.setOrderStatus(ShopCode.SHOP_ORDER_NO_CONFIRM.getCode());
