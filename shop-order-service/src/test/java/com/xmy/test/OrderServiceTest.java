@@ -26,7 +26,7 @@ public class OrderServiceTest {
     @Test
     public void confirmOrder() throws Exception {
         ExecutorService service = Executors.newCachedThreadPool();
-        final CountDownLatch cdAnswer = new CountDownLatch(2);
+        final CountDownLatch cdAnswer = new CountDownLatch(5);
         Thread t1 = new Thread() {
             @Override
             public void run() {

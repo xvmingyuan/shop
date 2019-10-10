@@ -18,7 +18,6 @@ import com.xmy.pojo.*;
 import com.xmy.utils.IDWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -101,6 +100,8 @@ public class OrderServiceImpl implements IOrderService {
             if (reduceGoodsNum.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
                 log.info(reduceGoodsNum.toString());
                 mqEntity.setGoodsNumber(0);
+                mqEntity.setCouponId(order.getCouponId());
+                mqEntity.setUserMoney(BigDecimal.ZERO);
                 CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
             }
             // 4 扣减优惠券
@@ -108,13 +109,14 @@ public class OrderServiceImpl implements IOrderService {
             if (reduceCouponStatus.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
                 log.info(reduceCouponStatus.toString());
                 mqEntity.setCouponId(order.getCouponId());
+                mqEntity.setUserMoney(BigDecimal.ZERO);
                 CastException.cast(ShopCode.SHOP_COUPON_USE_FAIL);
             }
             // 5 使用余额
             Result reduceMoneyPaid = reduceMoneyPaid(order);
             if (reduceMoneyPaid.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
                 log.info(reduceMoneyPaid.toString());
-                mqEntity.setUserMoney(order.getMoneyPaid());
+                mqEntity.setUserMoney(BigDecimal.ZERO);
                 CastException.cast(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL);
             }
 
@@ -225,7 +227,6 @@ public class OrderServiceImpl implements IOrderService {
      */
     private Result reduceMoneyPaid(ShopOrder order) {
         Result result;
-        CastException.cast(ShopCode.SHOP_FAIL);
         if (order.getMoneyPaid() != null && order.getMoneyPaid().compareTo(BigDecimal.ZERO) == 1) {
             ShopUserMoneyLog userMoneyLog = new ShopUserMoneyLog();
             userMoneyLog.setOrderId(order.getOrderId());
@@ -236,7 +237,7 @@ public class OrderServiceImpl implements IOrderService {
                 result = userService.updateMoneyPaid(userMoneyLog);
                 if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
                     log.info(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getMessage());
-                    return new Result(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getCode(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getMessage());
+                    return new Result(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getSuccess(), result.getCode(), result.getMessage());
                 }
                 log.info("订单:" + order.getOrderId() + ",扣减余额成功");
                 return result;
@@ -272,10 +273,10 @@ public class OrderServiceImpl implements IOrderService {
                 result = couponService.updateCouponStatus(coupon);
                 if (result.getSuccess().equals(ShopCode.SHOP_COUPON_USE_FAIL.getSuccess())) {
                     log.info(ShopCode.SHOP_COUPON_USE_FAIL.getMessage());
-                    result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_COUPON_USE_FAIL.getCode(), ShopCode.SHOP_COUPON_USE_FAIL.getMessage());
+                    result = new Result(ShopCode.SHOP_FAIL.getSuccess(), result.getCode(), result.getMessage());
                 }
                 log.info("订单:" + order.getOrderId() + ",使用优惠券");
-                return result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), ShopCode.SHOP_SUCCESS.getMessage());
+                return result;
             } catch (Exception e) {
                 e.printStackTrace();
                 return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getCode(), ShopCode.SHOP_FAIL.getMessage());
@@ -341,16 +342,21 @@ public class OrderServiceImpl implements IOrderService {
 //            }
 //        });
         /*  MQ end */
-
-        /*  乐观锁 start*/
-        Result result = goodsService.reduceGoodsNum(orderGoodsLog);
-        /*  乐观锁 end */
-        if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
-            log.info(result.getMessage());
+        try {
+            /*  乐观锁 start*/
+            Result result = goodsService.reduceGoodsNum(orderGoodsLog);
+            /*  乐观锁 end */
+            if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+                log.info(result.getMessage());
+                result = new Result(ShopCode.SHOP_FAIL.getSuccess(), result.getCode(), result.getMessage());
+                return result;
+            }
+            log.info("订单:" + order.getOrderId() + ",扣减库存成功");
             return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getCode(), ShopCode.SHOP_FAIL.getMessage());
         }
-        log.info("订单:" + order.getOrderId() + ",扣减库存成功");
-        return result;
 
     }
 
