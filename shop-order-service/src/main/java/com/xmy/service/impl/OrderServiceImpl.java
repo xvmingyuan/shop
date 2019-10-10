@@ -12,14 +12,18 @@ import com.xmy.entity.MQEntity;
 import com.xmy.entity.OrderResult;
 import com.xmy.entity.Result;
 import com.xmy.exception.CastException;
+import com.xmy.mapper.ShopMsgProviderMapper;
 import com.xmy.mapper.ShopOrderMapper;
 import com.xmy.pojo.*;
 import com.xmy.utils.IDWorker;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -48,16 +52,31 @@ public class OrderServiceImpl implements IOrderService {
     private ShopOrderMapper orderMapper;
 
     @Autowired
+    private ShopMsgProviderMapper msgProviderMapper;
+
+    @Autowired
     private IDWorker idWorker;
 
     @Autowired
+    private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+
+    @Autowired
     private RocketMQTemplate rocketMQTemplate;
+
+    @Value("${rocketmq.producer.group}")
+    private String groupName;
 
     @Value("${mq.order.topic}")
     private String topic;
 
     @Value("${mq.order.tag.cancel}")
     private String tag;
+
+    @Value("${mq.goods.topic}")
+    private String goodsTopic;
+
+    @Value("${mq.goods.tag.reduce}")
+    private String reduceGoodsNumTag;
 
     @Override
     public Result confirmOrder(ShopOrder order) {
@@ -109,7 +128,7 @@ public class OrderServiceImpl implements IOrderService {
                 e1.printStackTrace();
             }
             // 2 返回失败状态
-            result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getMessage());
+            result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_ORDER_CONFIRM_FAIL.getMessage());
             return result;
         }
     }
@@ -230,7 +249,7 @@ public class OrderServiceImpl implements IOrderService {
     }
 
     /**
-     * 扣减库存 (存在并发问题,使用数据库乐观锁解决,方案有待提升,)
+     * 扣减库存 (存在并发问题,使用数据库乐观锁解决,提升方案MQ,)
      *
      * @param order
      */
@@ -240,12 +259,75 @@ public class OrderServiceImpl implements IOrderService {
         orderGoodsLog.setOrderId(order.getOrderId());
         orderGoodsLog.setGoodsId(order.getGoodsId());
         orderGoodsLog.setGoodsNumber(order.getGoodsNumber());
+
+        /*  MQ start*/
+//        ShopGoods goods = goodsService.findOne(order.getGoodsId());
+//        // 判断库存是否充足
+//        if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
+//            CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
+//        }
+//        // 将消息持久化到数据库
+//        ShopMsgProvider msgProvider = new ShopMsgProvider();
+//        msgProvider.setId(String.valueOf(idWorker.nextId()));
+//        msgProvider.setGroupName(groupName);
+//        msgProvider.setMsgTopic(goodsTopic);
+//        msgProvider.setMsgTag(reduceGoodsNumTag);
+//        msgProvider.setMsgKey(String.valueOf(order.getOrderId()));
+//        msgProvider.setMsgBody(JSON.toJSONString(orderGoodsLog));
+//        msgProvider.setCreateTime(new Date());
+//        msgProviderMapper.insert(msgProvider);
+//        log.info("订单服务,持久化减库存消息到库");
+//        // 在线程池中进行处理
+//        threadPoolTaskExecutor.submit(new Runnable() {
+//            @Override
+//            public void run() {
+//                SendResult sendResult = null;
+//                try {
+//                    // 发送消息到MQ,有延迟和堆积,使用线程异步优化
+//                    sendResult = sendReduceGoodsNum(goodsTopic, reduceGoodsNumTag, order.getOrderId().toString(), JSON.toJSONString(orderGoodsLog));
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                    log.info("订单:" + order.getOrderId() + ",扣减库存失败");
+//                }
+//                if (sendResult.getSendStatus().equals(SendStatus.SEND_OK)) {
+//                    //6 等待发送结果,如果MQ接受到消息,删除发送成功的消息
+//                    log.info("订单服务,消息发送成功");
+//                    ShopMsgProviderKey msgProviderKey = new ShopMsgProviderKey();
+//                    msgProviderKey.setGroupName(groupName);
+//                    msgProviderKey.setMsgKey(String.valueOf(order.getOrderId()));
+//                    msgProviderKey.setMsgTag(reduceGoodsNumTag);
+//                    msgProviderMapper.deleteByPrimaryKey(msgProviderKey);
+//                    log.info("订单服务,数据库中持久化减库存消息已删除");
+//                    log.info("订单:" + order.getOrderId() + ",扣减库存成功");
+//                }
+//
+//            }
+//        });
+        /*  MQ end */
+        /*  乐观锁 start*/
         Result result = goodsService.reduceGoodsNum(orderGoodsLog);
         if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+            log.info(result.getMessage());
             CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
         }
         log.info("订单:" + order.getOrderId() + ",扣减库存成功");
+        /*  乐观锁 end */
     }
+
+    /**
+     * 发送扣减库存消息
+     *
+     * @param topic
+     * @param tag
+     * @param keys
+     * @param body
+     * @throws Exception
+     */
+    private SendResult sendReduceGoodsNum(String topic, String tag, String keys, String body) throws Exception {
+        Message message = new Message(topic, tag, keys, body.getBytes());
+        return rocketMQTemplate.getProducer().send(message);
+    }
+
 
     private void checkOrder(ShopOrder order) {
         // 校验订单是否存在

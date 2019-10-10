@@ -43,3 +43,11 @@ mq:
         name: pay_payTopic_group
     topic: payTopic
     tag: paid
+  goods:
+    consumer:
+      group:
+        name: goods_goodsTopic_reduce_group
+    topic: goodsNumTopic
+    tag:
+      reduce: reduce_goods_num
+

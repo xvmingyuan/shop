@@ -11,10 +11,13 @@ import com.xmy.pojo.ShopGoods;
 import com.xmy.pojo.ShopGoodsExample;
 import com.xmy.pojo.ShopOrderGoodsLog;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ThreadUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author xmy
@@ -48,25 +51,42 @@ public class GoodsServiceImpl implements IGoodsService {
                 orderGoodsLog.getGoodsNumber() == null ||
                 orderGoodsLog.getGoodsNumber().intValue() <= 0) {
             CastException.cast(ShopCode.SHOP_REQUEST_PARAMETER_VALID);
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage());
         }
+
+
+        /** 乐观锁实现*/
         ShopGoods goods = shopGoodsMapper.selectByPrimaryKey(orderGoodsLog.getGoodsId());
         // 判断库存是否充足
         if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
-            CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
+            CastException.cast(ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH);
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
         }
-        Integer goodsnum = goods.getGoodsNumber();
+        Integer goodsNumber = goods.getGoodsNumber();
         goods.setGoodsNumber(goods.getGoodsNumber() - orderGoodsLog.getGoodsNumber());
-
         // 分布式并发问题 ,使用乐观锁 <方案待提升>
         ShopGoodsExample shopGoodsExample = new ShopGoodsExample();
         ShopGoodsExample.Criteria criteria = shopGoodsExample.createCriteria();
         criteria.andGoodsIdEqualTo(goods.getGoodsId());
-        criteria.andGoodsNumberEqualTo(goodsnum);
+        criteria.andGoodsNumberEqualTo(goodsNumber);
         int r = shopGoodsMapper.updateByExample(goods, shopGoodsExample);
-        if (r <= 0) {
+        while (r <= 0) {
             // 未修改成功
-            log.info("库存数量并发修改,稍后处理");
-            // 引入MQ 解决问题 或者 循环
+            log.info("库存数量并发修改,处理...");
+            goods = shopGoodsMapper.selectByPrimaryKey(orderGoodsLog.getGoodsId());
+            if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
+                CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+            } else {
+                goodsNumber = goods.getGoodsNumber();
+                goods.setGoodsNumber(goods.getGoodsNumber() - orderGoodsLog.getGoodsNumber());
+                shopGoodsExample = new ShopGoodsExample();
+                criteria = shopGoodsExample.createCriteria();
+                criteria.andGoodsIdEqualTo(goods.getGoodsId());
+                criteria.andGoodsNumberEqualTo(goodsNumber);
+                r = shopGoodsMapper.updateByExample(goods, shopGoodsExample);
+
+            }
         }
 
         // 记录库存日志 库存数量  负数:扣库存

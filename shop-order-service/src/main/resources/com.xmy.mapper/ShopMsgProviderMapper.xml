@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xmy.mapper.ShopMsgProviderMapper">
+  <resultMap id="BaseResultMap" type="com.xmy.pojo.ShopMsgProvider">
+    <id column="group_name" jdbcType="VARCHAR" property="groupName" />
+    <id column="msg_tag" jdbcType="VARCHAR" property="msgTag" />
+    <id column="msg_key" jdbcType="VARCHAR" property="msgKey" />
+    <result column="id" jdbcType="VARCHAR" property="id" />
+    <result column="msg_topic" jdbcType="VARCHAR" property="msgTopic" />
+    <result column="msg_body" jdbcType="VARCHAR" property="msgBody" />
+    <result column="msg_status" jdbcType="INTEGER" property="msgStatus" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    group_name, msg_tag, msg_key, id, msg_topic, msg_body, msg_status, create_time
+  </sql>
+  <select id="selectByExample" parameterType="com.xmy.pojo.ShopMsgProviderExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from shop_msg_provider
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="com.xmy.pojo.ShopMsgProviderKey" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from shop_msg_provider
+    where group_name = #{groupName,jdbcType=VARCHAR}
+      and msg_tag = #{msgTag,jdbcType=VARCHAR}
+      and msg_key = #{msgKey,jdbcType=VARCHAR}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="com.xmy.pojo.ShopMsgProviderKey">
+    delete from shop_msg_provider
+    where group_name = #{groupName,jdbcType=VARCHAR}
+      and msg_tag = #{msgTag,jdbcType=VARCHAR}
+      and msg_key = #{msgKey,jdbcType=VARCHAR}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.xmy.pojo.ShopMsgProviderExample">
+    delete from shop_msg_provider
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.xmy.pojo.ShopMsgProvider">
+    insert into shop_msg_provider (group_name, msg_tag, msg_key, 
+      id, msg_topic, msg_body, 
+      msg_status, create_time)
+    values (#{groupName,jdbcType=VARCHAR}, #{msgTag,jdbcType=VARCHAR}, #{msgKey,jdbcType=VARCHAR}, 
+      #{id,jdbcType=VARCHAR}, #{msgTopic,jdbcType=VARCHAR}, #{msgBody,jdbcType=VARCHAR}, 
+      #{msgStatus,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP})
+  </insert>
+  <insert id="insertSelective" parameterType="com.xmy.pojo.ShopMsgProvider">
+    insert into shop_msg_provider
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="groupName != null">
+        group_name,
+      </if>
+      <if test="msgTag != null">
+        msg_tag,
+      </if>
+      <if test="msgKey != null">
+        msg_key,
+      </if>
+      <if test="id != null">
+        id,
+      </if>
+      <if test="msgTopic != null">
+        msg_topic,
+      </if>
+      <if test="msgBody != null">
+        msg_body,
+      </if>
+      <if test="msgStatus != null">
+        msg_status,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="groupName != null">
+        #{groupName,jdbcType=VARCHAR},
+      </if>
+      <if test="msgTag != null">
+        #{msgTag,jdbcType=VARCHAR},
+      </if>
+      <if test="msgKey != null">
+        #{msgKey,jdbcType=VARCHAR},
+      </if>
+      <if test="id != null">
+        #{id,jdbcType=VARCHAR},
+      </if>
+      <if test="msgTopic != null">
+        #{msgTopic,jdbcType=VARCHAR},
+      </if>
+      <if test="msgBody != null">
+        #{msgBody,jdbcType=VARCHAR},
+      </if>
+      <if test="msgStatus != null">
+        #{msgStatus,jdbcType=INTEGER},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=TIMESTAMP},
+      </if>
+    </trim>
+  </insert>
+  <select id="countByExample" parameterType="com.xmy.pojo.ShopMsgProviderExample" resultType="java.lang.Long">
+    select count(*) from shop_msg_provider
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    update shop_msg_provider
+    <set>
+      <if test="record.groupName != null">
+        group_name = #{record.groupName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.msgTag != null">
+        msg_tag = #{record.msgTag,jdbcType=VARCHAR},
+      </if>
+      <if test="record.msgKey != null">
+        msg_key = #{record.msgKey,jdbcType=VARCHAR},
+      </if>
+      <if test="record.id != null">
+        id = #{record.id,jdbcType=VARCHAR},
+      </if>
+      <if test="record.msgTopic != null">
+        msg_topic = #{record.msgTopic,jdbcType=VARCHAR},
+      </if>
+      <if test="record.msgBody != null">
+        msg_body = #{record.msgBody,jdbcType=VARCHAR},
+      </if>
+      <if test="record.msgStatus != null">
+        msg_status = #{record.msgStatus,jdbcType=INTEGER},
+      </if>
+      <if test="record.createTime != null">
+        create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    update shop_msg_provider
+    set group_name = #{record.groupName,jdbcType=VARCHAR},
+      msg_tag = #{record.msgTag,jdbcType=VARCHAR},
+      msg_key = #{record.msgKey,jdbcType=VARCHAR},
+      id = #{record.id,jdbcType=VARCHAR},
+      msg_topic = #{record.msgTopic,jdbcType=VARCHAR},
+      msg_body = #{record.msgBody,jdbcType=VARCHAR},
+      msg_status = #{record.msgStatus,jdbcType=INTEGER},
+      create_time = #{record.createTime,jdbcType=TIMESTAMP}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByPrimaryKeySelective" parameterType="com.xmy.pojo.ShopMsgProvider">
+    update shop_msg_provider
+    <set>
+      <if test="id != null">
+        id = #{id,jdbcType=VARCHAR},
+      </if>
+      <if test="msgTopic != null">
+        msg_topic = #{msgTopic,jdbcType=VARCHAR},
+      </if>
+      <if test="msgBody != null">
+        msg_body = #{msgBody,jdbcType=VARCHAR},
+      </if>
+      <if test="msgStatus != null">
+        msg_status = #{msgStatus,jdbcType=INTEGER},
+      </if>
+      <if test="createTime != null">
+        create_time = #{createTime,jdbcType=TIMESTAMP},
+      </if>
+    </set>
+    where group_name = #{groupName,jdbcType=VARCHAR}
+      and msg_tag = #{msgTag,jdbcType=VARCHAR}
+      and msg_key = #{msgKey,jdbcType=VARCHAR}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.xmy.pojo.ShopMsgProvider">
+    update shop_msg_provider
+    set id = #{id,jdbcType=VARCHAR},
+      msg_topic = #{msgTopic,jdbcType=VARCHAR},
+      msg_body = #{msgBody,jdbcType=VARCHAR},
+      msg_status = #{msgStatus,jdbcType=INTEGER},
+      create_time = #{createTime,jdbcType=TIMESTAMP}
+    where group_name = #{groupName,jdbcType=VARCHAR}
+      and msg_tag = #{msgTag,jdbcType=VARCHAR}
+      and msg_key = #{msgKey,jdbcType=VARCHAR}
+  </update>
+</mapper>

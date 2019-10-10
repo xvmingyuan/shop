@@ -34,3 +34,10 @@ mq:
       group:
         name: order_orderTopic_cancel_group
     topic: orderTopic
+  goods:
+    consumer:
+      group:
+        name: goods_goodsTopic_reduce_group
+    topic: goodsNumTopic
+    tag:
+      reduce: reduce_goods_num
