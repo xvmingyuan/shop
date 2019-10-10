@@ -11,13 +11,10 @@ import com.xmy.pojo.ShopGoods;
 import com.xmy.pojo.ShopGoodsExample;
 import com.xmy.pojo.ShopOrderGoodsLog;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ThreadUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author xmy
@@ -50,8 +47,7 @@ public class GoodsServiceImpl implements IGoodsService {
                 orderGoodsLog.getGoodsId() == null ||
                 orderGoodsLog.getGoodsNumber() == null ||
                 orderGoodsLog.getGoodsNumber().intValue() <= 0) {
-            CastException.cast(ShopCode.SHOP_REQUEST_PARAMETER_VALID);
-            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage());
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getCode(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage());
         }
 
 
@@ -59,8 +55,7 @@ public class GoodsServiceImpl implements IGoodsService {
         ShopGoods goods = shopGoodsMapper.selectByPrimaryKey(orderGoodsLog.getGoodsId());
         // 判断库存是否充足
         if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
-            CastException.cast(ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH);
-            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getCode(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
         }
         Integer goodsNumber = goods.getGoodsNumber();
         goods.setGoodsNumber(goods.getGoodsNumber() - orderGoodsLog.getGoodsNumber());
@@ -75,8 +70,7 @@ public class GoodsServiceImpl implements IGoodsService {
             log.info("库存数量并发修改,处理...");
             goods = shopGoodsMapper.selectByPrimaryKey(orderGoodsLog.getGoodsId());
             if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
-                CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
-                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getCode(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
             } else {
                 goodsNumber = goods.getGoodsNumber();
                 goods.setGoodsNumber(goods.getGoodsNumber() - orderGoodsLog.getGoodsNumber());
@@ -94,6 +88,6 @@ public class GoodsServiceImpl implements IGoodsService {
         orderGoodsLog.setLogTime(new Date());
         shopOrderGoodsLogMapper.insert(orderGoodsLog);
         log.info("扣减库存成功");
-        return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getMessage());
+        return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), ShopCode.SHOP_SUCCESS.getMessage());
     }
 }

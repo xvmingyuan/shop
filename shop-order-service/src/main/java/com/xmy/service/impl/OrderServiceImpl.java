@@ -85,14 +85,38 @@ public class OrderServiceImpl implements IOrderService {
         // 2 生成预订单
         Long orderId = savePreOrder(order);
         Result result;
+        String message = ShopCode.SHOP_ORDER_CONFIRM_FAIL.getMessage();
+        MQEntity mqEntity = null;
         try {
+            mqEntity = new MQEntity();
+            mqEntity.setOrderId(orderId);
+            mqEntity.setUserId(order.getUserId());
+            mqEntity.setGoodsId(order.getGoodsId());
+            mqEntity.setGoodsNumber(order.getGoodsNumber());
+            mqEntity.setUserMoney(order.getMoneyPaid());
+            mqEntity.setCouponId(order.getCouponId());
 
             // 3 扣减库存
-            reduceGoodsNum(order);
+            Result reduceGoodsNum = reduceGoodsNum(order);
+            if (reduceGoodsNum.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+                log.info(reduceGoodsNum.toString());
+                mqEntity.setGoodsNumber(0);
+                CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
+            }
             // 4 扣减优惠券
-            reduceCouponStatus(order);
+            Result reduceCouponStatus = reduceCouponStatus(order);
+            if (reduceCouponStatus.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+                log.info(reduceCouponStatus.toString());
+                mqEntity.setCouponId(order.getCouponId());
+                CastException.cast(ShopCode.SHOP_COUPON_USE_FAIL);
+            }
             // 5 使用余额
-            reduceMoneyPaid(order);
+            Result reduceMoneyPaid = reduceMoneyPaid(order);
+            if (reduceMoneyPaid.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+                log.info(reduceMoneyPaid.toString());
+                mqEntity.setUserMoney(order.getMoneyPaid());
+                CastException.cast(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL);
+            }
 
             // 模拟异常抛出
 //            CastException.cast(ShopCode.SHOP_FAIL);
@@ -110,17 +134,9 @@ public class OrderServiceImpl implements IOrderService {
 
         } catch (Exception e) {
             log.info(e.toString());
-
             /** 失败补偿机制 **/
             // 1 确认订单失败,发送消息
             //订单ID 优惠券ID 用户ID 余额  商品ID 商品数量
-            MQEntity mqEntity = new MQEntity();
-            mqEntity.setOrderId(orderId);
-            mqEntity.setUserId(order.getUserId());
-            mqEntity.setGoodsId(order.getGoodsId());
-            mqEntity.setGoodsNumber(order.getGoodsNumber());
-            mqEntity.setUserMoney(order.getMoneyPaid());
-            mqEntity.setCouponId(order.getCouponId());
 
             try {
                 sendCancelOrder(topic, tag, order.getOrderId().toString(), JSON.toJSONString(mqEntity));
@@ -128,7 +144,7 @@ public class OrderServiceImpl implements IOrderService {
                 e1.printStackTrace();
             }
             // 2 返回失败状态
-            result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_ORDER_CONFIRM_FAIL.getMessage());
+            result = new Result(ShopCode.SHOP_FAIL.getSuccess(), message);
             return result;
         }
     }
@@ -207,19 +223,30 @@ public class OrderServiceImpl implements IOrderService {
      *
      * @param order
      */
-    private void reduceMoneyPaid(ShopOrder order) {
+    private Result reduceMoneyPaid(ShopOrder order) {
+        Result result;
+        CastException.cast(ShopCode.SHOP_FAIL);
         if (order.getMoneyPaid() != null && order.getMoneyPaid().compareTo(BigDecimal.ZERO) == 1) {
             ShopUserMoneyLog userMoneyLog = new ShopUserMoneyLog();
             userMoneyLog.setOrderId(order.getOrderId());
             userMoneyLog.setUserId(order.getUserId());
             userMoneyLog.setUseMoney(order.getMoneyPaid());
             userMoneyLog.setMoneyLogType(ShopCode.SHOP_USER_MONEY_PAID.getCode());
-            Result result = userService.updateMoneyPaid(userMoneyLog);
-            if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
-                CastException.cast(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL);
+            try {
+                result = userService.updateMoneyPaid(userMoneyLog);
+                if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+                    log.info(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getMessage());
+                    return new Result(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getCode(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getMessage());
+                }
+                log.info("订单:" + order.getOrderId() + ",扣减余额成功");
+                return result;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getCode(), ShopCode.SHOP_FAIL.getMessage());
             }
-            log.info("订单:" + order.getOrderId() + ",扣减余额成功");
+
         }
+        return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), ShopCode.SHOP_SUCCESS.getMessage());
 
     }
 
@@ -228,24 +255,34 @@ public class OrderServiceImpl implements IOrderService {
      *
      * @param order
      */
-    private void reduceCouponStatus(ShopOrder order) {
+    private Result reduceCouponStatus(ShopOrder order) {
+        Result result;
         if (order.getCouponId() != null) {
-            ShopCoupon coupon = couponService.findOne(order.getCouponId());
-            if (coupon.getIsUsed().intValue() == ShopCode.SHOP_COUPON_ISUSED.getCode().intValue()) {
-                CastException.cast(ShopCode.SHOP_COUPON_ISUSED);
-            }
-            coupon.setOrderId(order.getOrderId());
-            coupon.setIsUsed(ShopCode.SHOP_COUPON_ISUSED.getCode());
-            coupon.setUsedTime(new Date());
+            try {
+                ShopCoupon coupon = couponService.findOne(order.getCouponId());
+                if (coupon.getIsUsed().intValue() == ShopCode.SHOP_COUPON_ISUSED.getCode().intValue()) {
+                    log.info(ShopCode.SHOP_COUPON_ISUSED.getMessage());
+                    result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_COUPON_ISUSED.getCode(), ShopCode.SHOP_COUPON_ISUSED.getMessage());
+                }
+                coupon.setOrderId(order.getOrderId());
+                coupon.setIsUsed(ShopCode.SHOP_COUPON_ISUSED.getCode());
+                coupon.setUsedTime(new Date());
 
-            //更新优惠券状态
-            Result result = couponService.updateCouponStatus(coupon);
-            if (result.getSuccess().equals(ShopCode.SHOP_COUPON_USE_FAIL.getSuccess())) {
-                CastException.cast(ShopCode.SHOP_COUPON_USE_FAIL);
+                //更新优惠券状态
+                result = couponService.updateCouponStatus(coupon);
+                if (result.getSuccess().equals(ShopCode.SHOP_COUPON_USE_FAIL.getSuccess())) {
+                    log.info(ShopCode.SHOP_COUPON_USE_FAIL.getMessage());
+                    result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_COUPON_USE_FAIL.getCode(), ShopCode.SHOP_COUPON_USE_FAIL.getMessage());
+                }
+                log.info("订单:" + order.getOrderId() + ",使用优惠券");
+                return result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), ShopCode.SHOP_SUCCESS.getMessage());
+            } catch (Exception e) {
+                e.printStackTrace();
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getCode(), ShopCode.SHOP_FAIL.getMessage());
             }
-            log.info("订单:" + order.getOrderId() + ",使用优惠券");
-
         }
+        return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), ShopCode.SHOP_SUCCESS.getMessage());
+
     }
 
     /**
@@ -253,7 +290,7 @@ public class OrderServiceImpl implements IOrderService {
      *
      * @param order
      */
-    private void reduceGoodsNum(ShopOrder order) {
+    private Result reduceGoodsNum(ShopOrder order) {
         // 订单ID  商品ID 商品数量
         ShopOrderGoodsLog orderGoodsLog = new ShopOrderGoodsLog();
         orderGoodsLog.setOrderId(order.getOrderId());
@@ -304,14 +341,17 @@ public class OrderServiceImpl implements IOrderService {
 //            }
 //        });
         /*  MQ end */
+
         /*  乐观锁 start*/
         Result result = goodsService.reduceGoodsNum(orderGoodsLog);
+        /*  乐观锁 end */
         if (result.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
             log.info(result.getMessage());
-            CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
+            return result;
         }
         log.info("订单:" + order.getOrderId() + ",扣减库存成功");
-        /*  乐观锁 end */
+        return result;
+
     }
 
     /**
