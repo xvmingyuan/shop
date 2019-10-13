@@ -4,6 +4,7 @@ public class PayResult {
     private String message;
     private Long payId;
     private Boolean status;
+    private Long orderId;
 
     public String getMessage() {
         return message;
@@ -27,5 +28,13 @@ public class PayResult {
 
     public void setStatus(Boolean status) {
         this.status = status;
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
     }
 }

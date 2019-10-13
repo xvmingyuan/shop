@@ -83,6 +83,7 @@ public class PayServiceImpl implements IPayService {
             PayResult payResult = new PayResult();
             payResult.setMessage(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getMessage());
             payResult.setPayId(shopPay.getPayId());
+            payResult.setOrderId(shopPay.getOrderId());
             payResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
             result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), JSON.toJSONString(payResult));
             log.info("支付服务,支付订单创建成功");
@@ -155,6 +156,7 @@ public class PayServiceImpl implements IPayService {
                 PayResult payResult = new PayResult();
                 payResult.setMessage(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getMessage());
                 payResult.setPayId(pay.getPayId());
+                payResult.setOrderId(shopPay.getOrderId());
                 payResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
 
                 result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), JSON.toJSONString(payResult));

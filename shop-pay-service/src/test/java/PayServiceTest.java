@@ -1,6 +1,8 @@
+import com.alibaba.fastjson.JSON;
 import com.xmy.PayServiceApplication;
 import com.xmy.api.IPayService;
 import com.xmy.constant.ShopCode;
+import com.xmy.entity.PayResult;
 import com.xmy.entity.Result;
 import com.xmy.pojo.ShopPay;
 import org.junit.Test;
@@ -59,7 +61,20 @@ public class PayServiceTest {
             public void run() {
                 cdAnswer.countDown();
                 Result result = payService.createPayment(A());
-                System.out.println(result);
+                if (result.getSuccess() == ShopCode.SHOP_SUCCESS.getSuccess()) {
+                    String message = result.getMessage();
+                    PayResult payResult = JSON.parseObject(message, PayResult.class);
+                    Long orderId = payResult.getOrderId();
+                    Long payId = payResult.getPayId();
+                    ShopPay pay = new ShopPay();
+                    pay.setPayId(payId);
+                    pay.setOrderId(orderId);
+                    pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode());
+                    Result result1 = payService.callbackPayment(pay);
+                    System.out.println(result);
+                    System.out.println(result1);
+                }
+
             }
         };
         Thread t2 = new Thread() {
@@ -67,7 +82,19 @@ public class PayServiceTest {
             public void run() {
                 cdAnswer.countDown();
                 Result result = payService.createPayment(B());
-                System.out.println(result);
+                if (result.getSuccess() == ShopCode.SHOP_SUCCESS.getSuccess()) {
+                    String message = result.getMessage();
+                    PayResult payResult = JSON.parseObject(message, PayResult.class);
+                    Long orderId = payResult.getOrderId();
+                    Long payId = payResult.getPayId();
+                    ShopPay pay = new ShopPay();
+                    pay.setPayId(payId);
+                    pay.setOrderId(orderId);
+                    pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode());
+                    Result result1 = payService.callbackPayment(pay);
+                    System.out.println(result);
+                    System.out.println(result1);
+                }
             }
         };
         Thread t3 = new Thread() {
@@ -75,7 +102,19 @@ public class PayServiceTest {
             public void run() {
                 cdAnswer.countDown();
                 Result result = payService.createPayment(C());
-                System.out.println(result);
+                if (result.getSuccess() == ShopCode.SHOP_SUCCESS.getSuccess()) {
+                    String message = result.getMessage();
+                    PayResult payResult = JSON.parseObject(message, PayResult.class);
+                    Long orderId = payResult.getOrderId();
+                    Long payId = payResult.getPayId();
+                    ShopPay pay = new ShopPay();
+                    pay.setPayId(payId);
+                    pay.setOrderId(orderId);
+                    pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode());
+                    Result result1 = payService.callbackPayment(pay);
+                    System.out.println(result);
+                    System.out.println(result1);
+                }
             }
         };
         Thread t4 = new Thread() {
@@ -83,7 +122,19 @@ public class PayServiceTest {
             public void run() {
                 cdAnswer.countDown();
                 Result result = payService.createPayment(D());
-                System.out.println(result);
+                if (result.getSuccess() == ShopCode.SHOP_SUCCESS.getSuccess()) {
+                    String message = result.getMessage();
+                    PayResult payResult = JSON.parseObject(message, PayResult.class);
+                    Long orderId = payResult.getOrderId();
+                    Long payId = payResult.getPayId();
+                    ShopPay pay = new ShopPay();
+                    pay.setPayId(payId);
+                    pay.setOrderId(orderId);
+                    pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode());
+                    Result result1 = payService.callbackPayment(pay);
+                    System.out.println(result);
+                    System.out.println(result1);
+                }
             }
         };
         Thread t5 = new Thread() {
@@ -91,7 +142,19 @@ public class PayServiceTest {
             public void run() {
                 cdAnswer.countDown();
                 Result result = payService.createPayment(E());
-                System.out.println(result);
+                if (result.getSuccess() == ShopCode.SHOP_SUCCESS.getSuccess()) {
+                    String message = result.getMessage();
+                    PayResult payResult = JSON.parseObject(message, PayResult.class);
+                    Long orderId = payResult.getOrderId();
+                    Long payId = payResult.getPayId();
+                    ShopPay pay = new ShopPay();
+                    pay.setPayId(payId);
+                    pay.setOrderId(orderId);
+                    pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode());
+                    Result result1 = payService.callbackPayment(pay);
+                    System.out.println(result);
+                    System.out.println(result1);
+                }
             }
         };
         service.execute(t1);
@@ -163,25 +226,25 @@ public class PayServiceTest {
     }
 
     public ShopPay A() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911960915968L;
         ShopPay pay = new ShopPay();
         pay.setOrderId(orderId);
         pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode());
-        pay.setPayAmount(new BigDecimal(600));
+        pay.setPayAmount(new BigDecimal(700.00));
         return pay;
     }
 
     public ShopPay B() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911948333056L;
         ShopPay pay = new ShopPay();
         pay.setOrderId(orderId);
         pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode());
-        pay.setPayAmount(new BigDecimal(600));
+        pay.setPayAmount(new BigDecimal(900.00));
         return pay;
     }
 
     public ShopPay C() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765912036413440L;
         ShopPay pay = new ShopPay();
         pay.setOrderId(orderId);
         pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode());
@@ -190,25 +253,25 @@ public class PayServiceTest {
     }
 
     public ShopPay D() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911990276096L;
         ShopPay pay = new ShopPay();
         pay.setOrderId(orderId);
         pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode());
-        pay.setPayAmount(new BigDecimal(600));
+        pay.setPayAmount(new BigDecimal(900.00));
         return pay;
     }
 
     public ShopPay E() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911960915969L;
         ShopPay pay = new ShopPay();
         pay.setOrderId(orderId);
         pay.setIsPaid(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode());
-        pay.setPayAmount(new BigDecimal(600));
+        pay.setPayAmount(new BigDecimal(1000.00));
         return pay;
     }
 
     public ShopPay AA() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911960915968L;
         Long payId = 379265591703379968L;
         ShopPay pay = new ShopPay();
         pay.setPayId(payId);
@@ -218,7 +281,7 @@ public class PayServiceTest {
     }
 
     public ShopPay BB() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911948333056L;
         Long payId = 379265591703379968L;
         ShopPay pay = new ShopPay();
         pay.setPayId(payId);
@@ -228,7 +291,7 @@ public class PayServiceTest {
     }
 
     public ShopPay CC() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765912036413440L;
         Long payId = 379265591703379968L;
         ShopPay pay = new ShopPay();
         pay.setPayId(payId);
@@ -238,7 +301,7 @@ public class PayServiceTest {
     }
 
     public ShopPay DD() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911990276096L;
         Long payId = 379265591703379968L;
         ShopPay pay = new ShopPay();
         pay.setPayId(payId);
@@ -248,7 +311,7 @@ public class PayServiceTest {
     }
 
     public ShopPay EE() {
-        Long orderId = 379264159239507968L;
+        Long orderId = 380765911960915969L;
         Long payId = 379265591703379968L;
         ShopPay pay = new ShopPay();
         pay.setPayId(payId);
