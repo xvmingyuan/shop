@@ -76,11 +76,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <!--rocketmq-->
+        <!--rocketmq-common-->
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
-            <artifactId>rocketmq-spring-boot-starter</artifactId>
-            <version>LATEST</version>
+            <artifactId>rocketmq-common</artifactId>
+            <version>4.5.1</version>
+        </dependency>
+        <!--rocketmq-client-->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client</artifactId>
+            <version>4.5.1</version>
         </dependency>
         <!-- fastJson 依赖库 -->
         <dependency>

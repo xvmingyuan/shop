@@ -17,9 +17,10 @@ import com.xmy.mapper.ShopOrderMapper;
 import com.xmy.pojo.*;
 import com.xmy.utils.IDWorker;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -60,9 +61,9 @@ public class OrderServiceImpl implements IOrderService {
     private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
     @Autowired
-    private RocketMQTemplate rocketMQTemplate;
+    private DefaultMQProducer producer;
 
-    @Value("${rocketmq.producer.group}")
+    @Value("${mq.rocketmq.producer.group}")
     private String groupName;
 
     @Value("${mq.order.topic}")
@@ -91,34 +92,38 @@ public class OrderServiceImpl implements IOrderService {
             mqEntity.setOrderId(orderId);
             mqEntity.setUserId(order.getUserId());
             mqEntity.setGoodsId(order.getGoodsId());
-            mqEntity.setGoodsNumber(order.getGoodsNumber());
-            mqEntity.setUserMoney(order.getMoneyPaid());
             mqEntity.setCouponId(order.getCouponId());
+            mqEntity.setUserMoney(order.getMoneyPaid());
+            mqEntity.setGoodsNumber(order.getGoodsNumber());
 
-            // 3 扣减库存
-            Result reduceGoodsNum = reduceGoodsNum(order);
-            if (reduceGoodsNum.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
-                log.info(reduceGoodsNum.toString());
-                mqEntity.setGoodsNumber(0);
-                mqEntity.setCouponId(order.getCouponId());
-                mqEntity.setUserMoney(BigDecimal.ZERO);
-                CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
-            }
-            // 4 扣减优惠券
+
+            // 3 扣减优惠券
             Result reduceCouponStatus = reduceCouponStatus(order);
             if (reduceCouponStatus.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
                 log.info(reduceCouponStatus.toString());
                 mqEntity.setCouponId(order.getCouponId());
+                mqEntity.setGoodsNumber(0);
                 mqEntity.setUserMoney(BigDecimal.ZERO);
                 CastException.cast(ShopCode.SHOP_COUPON_USE_FAIL);
             }
-            // 5 使用余额
+            // 4 使用余额
             Result reduceMoneyPaid = reduceMoneyPaid(order);
             if (reduceMoneyPaid.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
                 log.info(reduceMoneyPaid.toString());
                 mqEntity.setUserMoney(BigDecimal.ZERO);
+                mqEntity.setGoodsNumber(0);
                 CastException.cast(ShopCode.SHOP_USER_MONEY_REDUCE_FAIL);
             }
+
+            // 5 扣减库存
+//            Result reduceGoodsNum = reduceGoodsNum(order);
+            Result reduceGoodsNum = reduceGoodsNumByMQ(order);
+            if (reduceGoodsNum.getSuccess().equals(ShopCode.SHOP_FAIL.getSuccess())) {
+                log.info(reduceGoodsNum.toString());
+                mqEntity.setGoodsNumber(0);
+                CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
+            }
+
 
             // 模拟异常抛出
 //            CastException.cast(ShopCode.SHOP_FAIL);
@@ -201,7 +206,7 @@ public class OrderServiceImpl implements IOrderService {
      */
     private void sendCancelOrder(String topic, String tag, String keys, String body) throws Exception {
         Message message = new Message(topic, tag, keys, body.getBytes());
-        rocketMQTemplate.getProducer().send(message);
+        producer.send(message);
     }
 
     /**
@@ -297,51 +302,6 @@ public class OrderServiceImpl implements IOrderService {
         orderGoodsLog.setOrderId(order.getOrderId());
         orderGoodsLog.setGoodsId(order.getGoodsId());
         orderGoodsLog.setGoodsNumber(order.getGoodsNumber());
-
-        /*  MQ start*/
-//        ShopGoods goods = goodsService.findOne(order.getGoodsId());
-//        // 判断库存是否充足
-//        if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
-//            CastException.cast(ShopCode.SHOP_REDUCE_GOODS_NUM_FAIL);
-//        }
-//        // 将消息持久化到数据库
-//        ShopMsgProvider msgProvider = new ShopMsgProvider();
-//        msgProvider.setId(String.valueOf(idWorker.nextId()));
-//        msgProvider.setGroupName(groupName);
-//        msgProvider.setMsgTopic(goodsTopic);
-//        msgProvider.setMsgTag(reduceGoodsNumTag);
-//        msgProvider.setMsgKey(String.valueOf(order.getOrderId()));
-//        msgProvider.setMsgBody(JSON.toJSONString(orderGoodsLog));
-//        msgProvider.setCreateTime(new Date());
-//        msgProviderMapper.insert(msgProvider);
-//        log.info("订单服务,持久化减库存消息到库");
-//        // 在线程池中进行处理
-//        threadPoolTaskExecutor.submit(new Runnable() {
-//            @Override
-//            public void run() {
-//                SendResult sendResult = null;
-//                try {
-//                    // 发送消息到MQ,有延迟和堆积,使用线程异步优化
-//                    sendResult = sendReduceGoodsNum(goodsTopic, reduceGoodsNumTag, order.getOrderId().toString(), JSON.toJSONString(orderGoodsLog));
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                    log.info("订单:" + order.getOrderId() + ",扣减库存失败");
-//                }
-//                if (sendResult.getSendStatus().equals(SendStatus.SEND_OK)) {
-//                    //6 等待发送结果,如果MQ接受到消息,删除发送成功的消息
-//                    log.info("订单服务,消息发送成功");
-//                    ShopMsgProviderKey msgProviderKey = new ShopMsgProviderKey();
-//                    msgProviderKey.setGroupName(groupName);
-//                    msgProviderKey.setMsgKey(String.valueOf(order.getOrderId()));
-//                    msgProviderKey.setMsgTag(reduceGoodsNumTag);
-//                    msgProviderMapper.deleteByPrimaryKey(msgProviderKey);
-//                    log.info("订单服务,数据库中持久化减库存消息已删除");
-//                    log.info("订单:" + order.getOrderId() + ",扣减库存成功");
-//                }
-//
-//            }
-//        });
-        /*  MQ end */
         try {
             /*  乐观锁 start*/
             Result result = goodsService.reduceGoodsNum(orderGoodsLog);
@@ -361,6 +321,67 @@ public class OrderServiceImpl implements IOrderService {
     }
 
     /**
+     * 扣减库存 (方案MQ)
+     *
+     * @param order
+     */
+    private Result reduceGoodsNumByMQ(ShopOrder order) {
+        // 订单ID  商品ID 商品数量
+        ShopOrderGoodsLog orderGoodsLog = new ShopOrderGoodsLog();
+        orderGoodsLog.setOrderId(order.getOrderId());
+        orderGoodsLog.setGoodsId(order.getGoodsId());
+        orderGoodsLog.setGoodsNumber(order.getGoodsNumber());
+        try {
+            /*  MQ start*/
+            // 将消息持久化到数据库
+            ShopMsgProvider msgProvider = new ShopMsgProvider();
+            msgProvider.setId(String.valueOf(idWorker.nextId()));
+            msgProvider.setGroupName(groupName);
+            msgProvider.setMsgTopic(goodsTopic);
+            msgProvider.setMsgTag(reduceGoodsNumTag);
+            msgProvider.setMsgKey(String.valueOf(order.getOrderId()));
+            msgProvider.setMsgBody(JSON.toJSONString(orderGoodsLog));
+            msgProvider.setCreateTime(new Date());
+            msgProviderMapper.insert(msgProvider);
+            log.info("订单服务,持久化减库存消息到库");
+            // 在线程池中进行处理
+            threadPoolTaskExecutor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    SendResult sendResult = null;
+                    try {
+                        // 发送消息到MQ,有延迟和堆积,使用线程异步优化
+                        sendResult = sendReduceGoodsNum(goodsTopic, reduceGoodsNumTag, order.getOrderId().toString(), JSON.toJSONString(orderGoodsLog));
+                    } catch (Exception e) {
+                        log.info("订单:" + order.getOrderId() + ",扣减库存失败");
+
+                    }
+                    if (sendResult.getSendStatus().equals(SendStatus.SEND_OK)) {
+                        //6 等待发送结果,如果MQ接受到消息,删除发送成功的消息
+                        log.info("订单服务,消息发送成功");
+                        ShopMsgProviderKey msgProviderKey = new ShopMsgProviderKey();
+                        msgProviderKey.setGroupName(groupName);
+                        msgProviderKey.setMsgKey(String.valueOf(order.getOrderId()));
+                        msgProviderKey.setMsgTag(reduceGoodsNumTag);
+                        msgProviderMapper.deleteByPrimaryKey(msgProviderKey);
+                        log.info("订单服务,数据库中持久化减库存消息已删除");
+                        log.info("订单:" + order.getOrderId() + ",扣减库存成功");
+                    } else {
+                        log.info("订单:" + order.getOrderId() + ",扣减库存失败");
+
+                    }
+
+                }
+            });
+            /*  MQ end */
+            return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), ShopCode.SHOP_SUCCESS.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getCode(), ShopCode.SHOP_FAIL.getMessage());
+        }
+    }
+
+    /**
      * 发送扣减库存消息
      *
      * @param topic
@@ -371,7 +392,7 @@ public class OrderServiceImpl implements IOrderService {
      */
     private SendResult sendReduceGoodsNum(String topic, String tag, String keys, String body) throws Exception {
         Message message = new Message(topic, tag, keys, body.getBytes());
-        return rocketMQTemplate.getProducer().send(message);
+        return producer.send(message);
     }
 
 

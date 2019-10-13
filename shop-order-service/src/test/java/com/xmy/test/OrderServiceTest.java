@@ -4,18 +4,17 @@ import com.xmy.OrderServiceApplication;
 import com.xmy.api.IOrderService;
 import com.xmy.entity.Result;
 import com.xmy.pojo.ShopOrder;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.TransactionMQProducer;
+import org.apache.rocketmq.common.message.Message;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = OrderServiceApplication.class)
@@ -166,6 +165,27 @@ public class OrderServiceTest {
         order.setMoneyPaid(new BigDecimal(100));
         return order;
     }
+
+    @Autowired
+    private TransactionMQProducer producer;
+
+
+    @Test
+    public void testSendMessageTransactionV2() throws Exception {
+        String[] tags = {"tag0", "tag1", "tag2"};
+        for (int i = 0; i < 3; i++) {
+            Message message = new Message("TransactionTopic", tags[i], ("TransactionTopic Hello World" + tags[i] + i).getBytes());
+            // 第一阶段 发送消息
+            SendResult result = producer.sendMessageInTransaction(message, tags[i]);
+            // 消息状态
+            System.out.println("发送状态 " + result);
+            TimeUnit.SECONDS.sleep(2);
+        }
+
+        TimeUnit.SECONDS.sleep(10000);
+        System.in.read();
+    }
+
 
 
 }
