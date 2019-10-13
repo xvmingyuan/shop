@@ -34,7 +34,7 @@ public class CancelMQListener implements RocketMQListener<MessageExt> {
             //1 解析消息
             String body = new String(messageExt.getBody(), "UTF-8");
             MQEntity mqEntity = JSON.parseObject(body, MQEntity.class);
-            log.info("优惠券服务,接收到信息");
+            log.info("优惠券回退服务,接收到信息");
             if (mqEntity.getCouponId() != null) {
                 //2 查询优惠券信息(消息幂等性)
                 ShopCoupon coupon = couponMapper.selectByPrimaryKey(mqEntity.getCouponId());

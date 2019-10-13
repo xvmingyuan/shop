@@ -45,7 +45,7 @@ public class PaymentConsumerMQListener {
 
 
     @Bean
-    public DefaultMQPushConsumer getRocketMQConsumer() throws MQClientException {
+    public DefaultMQPushConsumer getPaymentRocketMQConsumer() throws MQClientException {
 
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(groupName);
         consumer.setNamesrvAddr(namesrvAddr);
@@ -67,7 +67,8 @@ public class PaymentConsumerMQListener {
                     // 1 解析消息
                     String body = new String(messageExt.getBody(), "UTF-8");
                     ShopPay pay = JSON.parseObject(body, ShopPay.class);
-                    log.info("订单服务,支付MQ调用");
+                    // 监听订阅已支付MQ消息
+                    log.info("订单已支付回调服务,接受到消息");
                     if (pay != null &&
                             pay.getOrderId() != null &&
                             pay.getPayId() != null &&

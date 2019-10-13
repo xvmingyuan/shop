@@ -43,7 +43,7 @@ public class CancelConsumerMQListener {
 
 
     @Bean
-    public DefaultMQPushConsumer getRocketMQConsumer() throws MQClientException {
+    public DefaultMQPushConsumer getCancelRocketMQConsumer() throws MQClientException {
 
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(groupName);
         consumer.setNamesrvAddr(namesrvAddr);
@@ -65,7 +65,7 @@ public class CancelConsumerMQListener {
                     // 1 解析消息内容
                     String body = new String(messageExt.getBody(), "UTF-8");
                     MQEntity mqEntity = JSON.parseObject(body, MQEntity.class);
-                    log.info("订单服务,接受到消息");
+                    log.info("订单取消服务,接受到消息");
                     if (mqEntity.getOrderId() != null) {
                         // 2 查询订单
                         ShopOrder order = orderMapper.selectByPrimaryKey(mqEntity.getOrderId());

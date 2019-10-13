@@ -36,6 +36,7 @@ public class ReduceGoodsNumMQListener implements RocketMQListener<MessageExt> {
     public void onMessage(MessageExt messageExt) {
         String body = new String(messageExt.getBody());
         ShopOrderGoodsLog orderGoodsLog = JSON.parseObject(body, ShopOrderGoodsLog.class);
+        log.info("商品扣减服务,接受到消息");
         try {
             // 空指针过滤
             if (orderGoodsLog == null ||

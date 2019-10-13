@@ -3,6 +3,7 @@ package com.xmy.mq;
 import com.alibaba.fastjson.JSON;
 import com.xmy.constant.ShopCode;
 import com.xmy.entity.MQEntity;
+import com.xmy.exception.CastException;
 import com.xmy.mapper.ShopGoodsMapper;
 import com.xmy.mapper.ShopMsgConsumerMapper;
 import com.xmy.mapper.ShopOrderGoodsLogMapper;
@@ -32,7 +33,7 @@ public class CancelMQListener implements RocketMQListener<MessageExt> {
     private ShopMsgConsumerMapper msgConsumerMapper;
 
     @Autowired
-    private ShopGoodsMapper goodsMapper;
+    private ShopGoodsMapper shopGoodsMapper;
 
     @Autowired
     private ShopOrderGoodsLogMapper orderGoodsLogMapper;
@@ -50,7 +51,7 @@ public class CancelMQListener implements RocketMQListener<MessageExt> {
             keys = messageExt.getKeys();
             body = new String(messageExt.getBody(), "UTF-8");
 
-            log.info("商品服务,接收到信息");
+            log.info("商品回退服务,接收到信息");
 
             //2 查询消息记录
             ShopMsgConsumerKey msgConsumerKey = new ShopMsgConsumerKey();
@@ -109,11 +110,31 @@ public class CancelMQListener implements RocketMQListener<MessageExt> {
                 // 将消息处理信息添加到数据库
                 msgConsumerMapper.insert(msgConsumer);
             }
-            //5 回退库存
+            //5 库存回退  乐观锁实现
             MQEntity mqEntity = JSON.parseObject(body, MQEntity.class);
-            ShopGoods goods = goodsMapper.selectByPrimaryKey(mqEntity.getGoodsId());
+            ShopGoods goods = shopGoodsMapper.selectByPrimaryKey(mqEntity.getGoodsId());
+            Integer goodsNumber = goods.getGoodsNumber();
             goods.setGoodsNumber(goods.getGoodsNumber() + mqEntity.getGoodsNumber());
-            goodsMapper.updateByPrimaryKey(goods);
+            // 分布式并发问题 ,使用乐观锁 <方案待提升>
+            ShopGoodsExample shopGoodsExample = new ShopGoodsExample();
+            ShopGoodsExample.Criteria criteria = shopGoodsExample.createCriteria();
+            criteria.andGoodsIdEqualTo(goods.getGoodsId());
+            criteria.andGoodsNumberEqualTo(goodsNumber);
+            int r = shopGoodsMapper.updateByExample(goods, shopGoodsExample);
+            while (r <= 0) {
+                // 未修改成功
+                log.info("库存回退MQ并发处理...");
+                goods = shopGoodsMapper.selectByPrimaryKey(mqEntity.getGoodsId());
+                goodsNumber = goods.getGoodsNumber();
+                goods.setGoodsNumber(goods.getGoodsNumber() + mqEntity.getGoodsNumber());
+                shopGoodsExample = new ShopGoodsExample();
+                criteria = shopGoodsExample.createCriteria();
+                criteria.andGoodsIdEqualTo(goods.getGoodsId());
+                criteria.andGoodsNumberEqualTo(goodsNumber);
+                r = shopGoodsMapper.updateByExample(goods, shopGoodsExample);
+
+            }
+
             // 记录库存操作日志
             ShopOrderGoodsLog orderGoodsLog = new ShopOrderGoodsLog();
             orderGoodsLog.setGoodsId(mqEntity.getGoodsId());
