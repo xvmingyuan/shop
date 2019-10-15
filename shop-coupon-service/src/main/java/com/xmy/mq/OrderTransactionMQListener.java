@@ -39,6 +39,9 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
     @Value("${mq.order.confirm.consumer.callback.tag}")
     private String callbackTag;
 
+    @Value("${mq.order.confirm.consumer.callback.sourcecode}")
+    private String sourceCode;
+
     @Override
     public void onMessage(MessageExt messageExt) {
         String body = new String(messageExt.getBody());
@@ -58,7 +61,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
                 ShopCoupon coupon = couponMapper.selectByPrimaryKey(order.getCouponId());
                 if (coupon.getIsUsed().intValue() == ShopCode.SHOP_COUPON_ISUSED.getCode().intValue()) {
                     log.info(ShopCode.SHOP_COUPON_ISUSED.getMessage());
-                    return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_COUPON_ISUSED.getCode(), ShopCode.SHOP_COUPON_ISUSED.getMessage());
+                    OrderResult orderResult = new OrderResult();
+                    orderResult.setOrderId(order.getOrderId());
+                    orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+                    orderResult.setMessage(ShopCode.SHOP_COUPON_ISUSED.getMessage());
+                    orderResult.setSourceCode(sourceCode);
+                    return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_COUPON_ISUSED.getCode(), JSON.toJSONString(orderResult));
                 }
                 coupon.setOrderId(order.getOrderId());
                 coupon.setIsUsed(ShopCode.SHOP_COUPON_ISUSED.getCode());
@@ -70,10 +78,15 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
                 orderResult.setOrderId(order.getOrderId());
                 orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
                 orderResult.setMessage(ShopCode.SHOP_COUPON_USE_SUCCESS.getMessage());
-
+                orderResult.setSourceCode(sourceCode);
                 return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_COUPON_USE_SUCCESS.getCode(), JSON.toJSONString(orderResult));
             } catch (Exception e) {
                 e.printStackTrace();
+                OrderResult orderResult = new OrderResult();
+                orderResult.setOrderId(order.getOrderId());
+                orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+                orderResult.setMessage(ShopCode.SHOP_COUPON_USE_FAIL.getMessage());
+                orderResult.setSourceCode(sourceCode);
                 return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_COUPON_USE_FAIL.getCode(), ShopCode.SHOP_COUPON_USE_FAIL.getMessage());
             }
         } else {
@@ -81,7 +94,8 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
             OrderResult orderResult = new OrderResult();
             orderResult.setOrderId(order.getOrderId());
             orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
-            orderResult.setMessage(ShopCode.SHOP_SUCCESS.getMessage());
+            orderResult.setMessage(ShopCode.SHOP_SUCCESS.getMessage()); // JSON.toJSONString(orderResult)
+            orderResult.setSourceCode(sourceCode);
             return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_COUPON_USE_SUCCESS.getCode(), JSON.toJSONString(orderResult));
         }
     }

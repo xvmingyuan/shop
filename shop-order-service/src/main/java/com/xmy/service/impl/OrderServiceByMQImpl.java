@@ -17,10 +17,11 @@ import com.xmy.mapper.ShopOrderMapper;
 import com.xmy.mapper.ShopOrderMqStatusLogMapper;
 import com.xmy.pojo.*;
 import com.xmy.utils.IDWorker;
-import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.client.producer.*;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.SendStatus;
+import org.apache.rocketmq.client.producer.TransactionMQProducer;
 import org.apache.rocketmq.common.message.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -107,9 +108,6 @@ public class OrderServiceByMQImpl implements IOrderService {
             mqEntity.setUserId(order.getUserId());
             mqEntity.setGoodsId(order.getGoodsId());
             mqEntity.setCouponId(order.getCouponId());
-            mqEntity.setUserMoney(order.getMoneyPaid());
-            mqEntity.setGoodsNumber(order.getGoodsNumber());
-
             // 3 MQ监听 扣减优惠券
             // 4 MQ监听 使用余额
             // 5 MQ监听 扣减库存
@@ -119,6 +117,20 @@ public class OrderServiceByMQImpl implements IOrderService {
                 if (orderResult.getOrderStatus().intValue() == ShopCode.SHOP_ORDER_CONFIRM.getCode()) {
                     status = false;
                     result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_ORDER_CONFIRM.getCode(), JSON.toJSONString(orderResult));
+                }
+                if (orderResult.getOrderStatus().intValue() == ShopCode.SHOP_ORDER_CALL_ERROR.getCode()) {
+                    ShopOrderMqStatusLog orderMqStatusLog = orderMqStatusLogMapper.selectByPrimaryKey(orderId);
+                    if (orderMqStatusLog.getGoodsStatus() == 1) {
+                        mqEntity.setGoodsNumber(order.getGoodsNumber());
+                    } else {
+                        mqEntity.setGoodsNumber(0);
+                    }
+                    if (orderMqStatusLog.getUserMoneyStatus() == 1) {
+                        mqEntity.setUserMoney(order.getMoneyPaid());
+                    } else {
+                        mqEntity.setUserMoney(BigDecimal.ZERO);
+                    }
+                    CastException.cast(ShopCode.SHOP_ORDER_CALL_ERROR);
                 }
                 orderResult = orderMapper.selectByPrimaryKey(orderId);
             }
@@ -132,7 +144,7 @@ public class OrderServiceByMQImpl implements IOrderService {
             //订单ID 优惠券ID 用户ID 余额  商品ID 商品数量
 
             try {
-//                sendCancelOrder(topic, tag, order.getOrderId().toString(), JSON.toJSONString(mqEntity));
+                sendCancelOrder(topic, tag, order.getOrderId().toString(), JSON.toJSONString(mqEntity));
             } catch (Exception e1) {
                 e1.printStackTrace();
             }

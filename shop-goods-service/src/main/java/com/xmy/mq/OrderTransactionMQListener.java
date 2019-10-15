@@ -45,6 +45,9 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
     @Value("${mq.order.confirm.consumer.callback.tag}")
     private String callbackTag;
 
+    @Value("${mq.order.confirm.consumer.callback.sourcecode}")
+    private String sourceCode;
+
     @Override
     public void onMessage(MessageExt messageExt) {
         String body = new String(messageExt.getBody());
@@ -71,7 +74,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
                 orderGoodsLog.getGoodsId() == null ||
                 orderGoodsLog.getGoodsNumber() == null ||
                 orderGoodsLog.getGoodsNumber().intValue() <= 0) {
-            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getCode(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage());
+            OrderResult orderResult = new OrderResult();
+            orderResult.setOrderId(orderGoodsLog.getOrderId());
+            orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+            orderResult.setMessage(ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage()); // JSON.toJSONString(orderResult)
+            orderResult.setSourceCode(sourceCode);
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getCode(), JSON.toJSONString(orderResult));
         }
 
 
@@ -79,7 +87,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
         ShopGoods goods = shopGoodsMapper.selectByPrimaryKey(orderGoodsLog.getGoodsId());
         // 判断库存是否充足
         if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
-            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getCode(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+            OrderResult orderResult = new OrderResult();
+            orderResult.setOrderId(orderGoodsLog.getOrderId());
+            orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+            orderResult.setMessage(ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+            orderResult.setSourceCode(sourceCode);
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getCode(), JSON.toJSONString(orderResult));
         }
         Integer goodsNumber = goods.getGoodsNumber();
         goods.setGoodsNumber(goods.getGoodsNumber() - orderGoodsLog.getGoodsNumber());
@@ -94,7 +107,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
             log.info("库存数量并发修改,处理...");
             goods = shopGoodsMapper.selectByPrimaryKey(orderGoodsLog.getGoodsId());
             if (goods.getGoodsNumber() < orderGoodsLog.getGoodsNumber()) {
-                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getCode(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+                OrderResult orderResult = new OrderResult();
+                orderResult.setOrderId(orderGoodsLog.getOrderId());
+                orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+                orderResult.setMessage(ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getMessage());
+                orderResult.setSourceCode(sourceCode);
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_GOODS_NUM_NOT_ENOUGH.getCode(), JSON.toJSONString(orderResult));
             } else {
                 goodsNumber = goods.getGoodsNumber();
                 goods.setGoodsNumber(goods.getGoodsNumber() - orderGoodsLog.getGoodsNumber());
@@ -116,6 +134,7 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
         orderResult.setOrderId(orderGoodsLog.getOrderId());
         orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
         orderResult.setMessage(ShopCode.SHOP_SUCCESS.getMessage());
+        orderResult.setSourceCode(sourceCode);
         return new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), JSON.toJSONString(orderResult));
     }
 

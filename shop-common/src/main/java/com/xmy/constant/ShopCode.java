@@ -20,6 +20,7 @@ public enum ShopCode {
     SHOP_ORDER_INVALID(false, 3, "订单无效"),
     SHOP_ORDER_RETURNED(false, 4, "订单已退货"),
     SHOP_ORDER_FINISHED(false, 5, "订单已完成"),
+    SHOP_ORDER_CALL_ERROR(false, 6, "订单异常"),
 
     SHOP_ORDER_PAY_STATUS_NO_PAY(true, 0, "订单未付款"),
     SHOP_ORDER_PAY_STATUS_PAYING(true, 1, "订单正在付款"),

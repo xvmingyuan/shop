@@ -38,6 +38,9 @@ public class OrderTransactionMQListenerImpl implements TransactionListener {
                 orderMapper.insert(order);
                 ShopOrderMqStatusLog orderMqStatusLog = new ShopOrderMqStatusLog();
                 orderMqStatusLog.setOrderId(order.getOrderId());
+                orderMqStatusLog.setGoodsStatus(-1);
+                orderMqStatusLog.setCouponStatus(-1);
+                orderMqStatusLog.setUserMoneyStatus(-1);
                 orderMqStatusLogMapper.insert(orderMqStatusLog);
                 log.info("订单" + order.getOrderId() + ",下单成功");
                 return LocalTransactionState.COMMIT_MESSAGE;

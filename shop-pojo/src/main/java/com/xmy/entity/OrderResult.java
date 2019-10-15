@@ -7,6 +7,15 @@ public class OrderResult {
     private Long orderId;
     private Boolean status;
     private BigDecimal payAmount;
+    private String sourceCode;
+
+    public String getSourceCode() {
+        return sourceCode;
+    }
+
+    public void setSourceCode(String sourceCode) {
+        this.sourceCode = sourceCode;
+    }
 
     public String getMessage() {
         return message;

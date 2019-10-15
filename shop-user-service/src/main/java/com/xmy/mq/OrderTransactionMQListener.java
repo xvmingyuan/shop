@@ -46,6 +46,9 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
     @Value("${mq.order.confirm.consumer.callback.tag}")
     private String callbackTag;
 
+    @Value("${mq.order.confirm.consumer.callback.sourcecode}")
+    private String sourceCode;
+
     @Override
     public void onMessage(MessageExt messageExt) {
         String body = new String(messageExt.getBody());
@@ -64,6 +67,7 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
             orderResult.setOrderId(order.getOrderId());
             orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
             orderResult.setMessage(ShopCode.SHOP_SUCCESS.getMessage());
+            orderResult.setSourceCode(sourceCode);
             result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), JSON.toJSONString(orderResult));
         }
 
@@ -76,13 +80,19 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
     }
 
     private Result updateMoneyPaid(ShopUserMoneyLog userMoneyLog) {
+        OrderResult orderResult = new OrderResult();
         //1校验参数是否合法
         if (userMoneyLog == null ||
                 userMoneyLog.getUserId() == null ||
                 userMoneyLog.getOrderId() == null ||
                 userMoneyLog.getUseMoney() == null ||
                 userMoneyLog.getUseMoney().compareTo(BigDecimal.ZERO) <= 0) {
-            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getCode(), ShopCode.SHOP_FAIL.getMessage());
+            orderResult = new OrderResult();
+            orderResult.setOrderId(userMoneyLog.getOrderId());
+            orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+            orderResult.setMessage(ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage()); // JSON.toJSONString(orderResult)
+            orderResult.setSourceCode(sourceCode);
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getCode(), JSON.toJSONString(orderResult));
         }
 
         //2查询订单余额使用日志
@@ -97,7 +107,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
         //3扣减余额
         if (userMoneyLog.getMoneyLogType().intValue() == ShopCode.SHOP_USER_MONEY_PAID.getCode().intValue()) {
             if (r > 0) {//已付款
-                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode(), ShopCode.SHOP_FAIL.getMessage());
+                orderResult = new OrderResult();
+                orderResult.setOrderId(userMoneyLog.getOrderId());
+                orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+                orderResult.setMessage(ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getMessage());
+                orderResult.setSourceCode(sourceCode);
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getCode(), JSON.toJSONString(orderResult));
             }
             //扣减余额
             user.setUserMoney(user.getUserMoney().subtract(userMoneyLog.getUseMoney()));
@@ -107,7 +122,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
         //4回退余额
         if (userMoneyLog.getMoneyLogType().intValue() == ShopCode.SHOP_USER_MONEY_REFUND.getCode().intValue()) {
             if (r < 0) {//未付款
-                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode(), ShopCode.SHOP_ORDER_PAY_STATUS_IS_PAY.getMessage());
+                orderResult = new OrderResult();
+                orderResult.setOrderId(userMoneyLog.getOrderId());
+                orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+                orderResult.setMessage(ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getMessage());
+                orderResult.setSourceCode(sourceCode);
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_ORDER_PAY_STATUS_NO_PAY.getCode(), JSON.toJSONString(orderResult));
             }
             //防止多次退款
             ShopUserMoneyLogExample userMoneyLogExample1 = new ShopUserMoneyLogExample();
@@ -117,7 +137,12 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
             criteria1.andMoneyLogTypeEqualTo(ShopCode.SHOP_USER_MONEY_REFUND.getCode());
             long r2 = userMoneyLogMapper.countByExample(userMoneyLogExample1);
             if (r2 > 0) {//已退过款
-                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_ALREADY.getCode(), ShopCode.SHOP_USER_MONEY_REDUCE_ALREADY.getMessage());
+                orderResult = new OrderResult();
+                orderResult.setOrderId(userMoneyLog.getOrderId());
+                orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+                orderResult.setMessage(ShopCode.SHOP_USER_MONEY_REDUCE_ALREADY.getMessage());
+                orderResult.setSourceCode(sourceCode);
+                return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_ALREADY.getCode(), JSON.toJSONString(orderResult));
             }
             // 退款加余额
             user.setUserMoney(user.getUserMoney().add(userMoneyLog.getUseMoney()));
@@ -129,13 +154,20 @@ public class OrderTransactionMQListener implements RocketMQListener<MessageExt> 
         Result result;
         try {
             userMoneyLogMapper.insert(userMoneyLog);
-            OrderResult orderResult = new OrderResult();
+            orderResult = new OrderResult();
             orderResult.setMessage(ShopCode.SHOP_USER_MONEY_REDUCE_SUCCESS.getMessage());
             orderResult.setOrderId(userMoneyLog.getOrderId());
             orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
+            orderResult.setSourceCode(sourceCode);
             result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_SUCCESS.getCode(), JSON.toJSONString(orderResult));
         } catch (Exception e) {
             log.info(e.toString());
+            orderResult = new OrderResult();
+            orderResult.setMessage(ShopCode.SHOP_USER_MONEY_REDUCE_SUCCESS.getMessage());
+            orderResult.setOrderId(userMoneyLog.getOrderId());
+            orderResult.setStatus(ShopCode.SHOP_FAIL.getSuccess());
+            orderResult.setMessage(ShopCode.SHOP_USER_MONEY_REDUCE_ALREADY.getMessage());
+            orderResult.setSourceCode(sourceCode);
             result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getCode(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getMessage());
         }
         return result;
