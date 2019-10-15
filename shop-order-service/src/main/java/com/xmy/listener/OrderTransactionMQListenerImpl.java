@@ -1,43 +1,55 @@
 package com.xmy.listener;
 
+import com.alibaba.fastjson.JSON;
+import com.xmy.mapper.ShopOrderMapper;
+import com.xmy.mapper.ShopOrderMqStatusLogMapper;
+import com.xmy.pojo.ShopOrder;
+import com.xmy.pojo.ShopOrderMqStatusLog;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.producer.LocalTransactionState;
 import org.apache.rocketmq.client.producer.TransactionListener;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+@SuppressWarnings("ALL")
 @Component
+@Slf4j
 public class OrderTransactionMQListenerImpl implements TransactionListener {
+    @Autowired
+    private ShopOrderMapper orderMapper;
+
+    @Autowired
+    private ShopOrderMqStatusLogMapper orderMqStatusLogMapper;
+
+    @Value("${mq.order.confirm.tag.confirm}")
+    private String orderConfirmTag;
+
     @Override
     public LocalTransactionState executeLocalTransaction(Message message, Object object) {
-        System.out.println(message);
-        System.out.println();
-        String tags = (String) message.getTags();
-        System.out.println("tags: " + tags);
-
-        String topic = (String) message.getTopic();
-        System.out.println("topic: " + topic);
-
-        String kes = (String) message.getKeys();
-        System.out.println("kes: " + kes);
-
-        String transaction_id = message.getTransactionId();
-        System.out.println("transaction_id: " + transaction_id);
-
-        String args = (String) object;
-        System.out.println("自定义args:" + args);
-
-
-        if (StringUtils.equals(message.getTags(), "tag0")) {
-            return LocalTransactionState.ROLLBACK_MESSAGE;
-        } else if (StringUtils.equals("tag1", message.getTags())) {
-            return LocalTransactionState.COMMIT_MESSAGE;
-        } else if (StringUtils.equals("tag2", message.getTags())) {
+        String tags = message.getTags();
+        if (StringUtils.equals(tags, orderConfirmTag)) {
+            String body = new String(message.getBody());
+            try {
+                ShopOrder order = JSON.parseObject(body, ShopOrder.class);
+                orderMapper.insert(order);
+                ShopOrderMqStatusLog orderMqStatusLog = new ShopOrderMqStatusLog();
+                orderMqStatusLog.setOrderId(order.getOrderId());
+                orderMqStatusLogMapper.insert(orderMqStatusLog);
+                log.info("订单" + order.getOrderId() + ",下单成功");
+                return LocalTransactionState.COMMIT_MESSAGE;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return LocalTransactionState.ROLLBACK_MESSAGE;
+            }
+        } else {
             return LocalTransactionState.UNKNOW;
         }
-        return LocalTransactionState.UNKNOW;
     }
+
 
     @Override
     public LocalTransactionState checkLocalTransaction(MessageExt messageExt) {

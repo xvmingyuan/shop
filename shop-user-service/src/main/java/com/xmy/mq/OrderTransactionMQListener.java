@@ -1,44 +1,81 @@
-package com.xmy.service.impl;
+package com.xmy.mq;
 
-import com.alibaba.dubbo.config.annotation.Service;
-import com.xmy.api.IUserService;
+import com.alibaba.fastjson.JSON;
 import com.xmy.constant.ShopCode;
+import com.xmy.entity.OrderResult;
 import com.xmy.entity.Result;
-import com.xmy.exception.CastException;
 import com.xmy.mapper.ShopUserMapper;
 import com.xmy.mapper.ShopUserMoneyLogMapper;
+import com.xmy.pojo.ShopOrder;
 import com.xmy.pojo.ShopUser;
 import com.xmy.pojo.ShopUserMoneyLog;
 import com.xmy.pojo.ShopUserMoneyLogExample;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.spring.annotation.MessageModel;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.Date;
 
 @SuppressWarnings("ALL")
-@Component
-@Service(interfaceClass = IUserService.class)
 @Slf4j
-public class UserServiceImpl implements IUserService {
-
+@Component
+@RocketMQMessageListener(topic = "${mq.order.confirm.topic}",
+        consumerGroup = "${mq.order.confirm.consumer.groupname}",
+        messageModel = MessageModel.BROADCASTING)
+public class OrderTransactionMQListener implements RocketMQListener<MessageExt> {
     @Autowired
     private ShopUserMapper userMapper;
 
     @Autowired
     private ShopUserMoneyLogMapper userMoneyLogMapper;
 
-    @Override
-    public ShopUser findOne(Long userId) {
-        if (userId == null) {
-            CastException.cast(ShopCode.SHOP_REQUEST_PARAMETER_VALID);
-        }
-        return userMapper.selectByPrimaryKey(userId);
-    }
+    @Autowired
+    private RocketMQTemplate rocketMQTemplate;
+
+    @Value("${mq.order.confirm.consumer.callback.topic}")
+    private String callbackTopic;
+
+    @Value("${mq.order.confirm.consumer.callback.tag}")
+    private String callbackTag;
 
     @Override
-    public Result updateMoneyPaid(ShopUserMoneyLog userMoneyLog) {
+    public void onMessage(MessageExt messageExt) {
+        String body = new String(messageExt.getBody());
+        ShopOrder order = JSON.parseObject(body, ShopOrder.class);
+        log.info("用户余额扣减服务,接受到消息");
+        Result result = null;
+        if (order.getMoneyPaid() != null && order.getMoneyPaid().compareTo(BigDecimal.ZERO) == 1) {
+            ShopUserMoneyLog userMoneyLog = new ShopUserMoneyLog();
+            userMoneyLog.setOrderId(order.getOrderId());
+            userMoneyLog.setUserId(order.getUserId());
+            userMoneyLog.setUseMoney(order.getMoneyPaid());
+            userMoneyLog.setMoneyLogType(ShopCode.SHOP_USER_MONEY_PAID.getCode());
+            result = updateMoneyPaid(userMoneyLog);
+        } else {
+            OrderResult orderResult = new OrderResult();
+            orderResult.setOrderId(order.getOrderId());
+            orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
+            orderResult.setMessage(ShopCode.SHOP_SUCCESS.getMessage());
+            result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getCode(), JSON.toJSONString(orderResult));
+        }
+
+        try {
+            sendMessage(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private Result updateMoneyPaid(ShopUserMoneyLog userMoneyLog) {
         //1校验参数是否合法
         if (userMoneyLog == null ||
                 userMoneyLog.getUserId() == null ||
@@ -92,11 +129,22 @@ public class UserServiceImpl implements IUserService {
         Result result;
         try {
             userMoneyLogMapper.insert(userMoneyLog);
-            result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_SUCCESS.getMessage());
+            OrderResult orderResult = new OrderResult();
+            orderResult.setMessage(ShopCode.SHOP_USER_MONEY_REDUCE_SUCCESS.getMessage());
+            orderResult.setOrderId(userMoneyLog.getOrderId());
+            orderResult.setStatus(ShopCode.SHOP_SUCCESS.getSuccess());
+            result = new Result(ShopCode.SHOP_SUCCESS.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_SUCCESS.getCode(), JSON.toJSONString(orderResult));
         } catch (Exception e) {
             log.info(e.toString());
-            result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_FAIL.getMessage());
+            result = new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getCode(), ShopCode.SHOP_USER_MONEY_REDUCE_FAIL.getMessage());
         }
         return result;
+    }
+
+    private void sendMessage(Result result) throws Exception {
+        Message message = new Message(callbackTopic, callbackTag, result.getCode().toString(), JSON.toJSONString(result).getBytes());
+        rocketMQTemplate.getProducer().send(message);
+        log.info("余额扣减成功,发送消息");
+
     }
 }

@@ -4,6 +4,7 @@ import com.xmy.listener.OrderTransactionMQListenerImpl;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.TransactionMQProducer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +23,9 @@ public class MQProducerConfiguration {
     @Value("${mq.rocketmq.producer.send-message-timeout}")
     private int sendMsgTimeout;
 
+    @Autowired
+    private OrderTransactionMQListenerImpl orderTransactionMQListener;
+
     @Bean()
     TransactionMQProducer producer() throws MQClientException {
         // 1 创建消息生产者 producer 并制定生产者组名
@@ -29,7 +33,7 @@ public class MQProducerConfiguration {
         // 2 指定NameServer地址
         producer.setNamesrvAddr(namesrvAddr);
         // 设置回调
-        producer.setTransactionListener(new OrderTransactionMQListenerImpl());
+        producer.setTransactionListener(orderTransactionMQListener);
         // 超时时间设置
         producer.setSendMsgTimeout(sendMsgTimeout);
         // 3 启动producer

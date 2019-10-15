@@ -25,6 +25,16 @@ mybatis:
 # 自定义消息参数
 mq:
   order:
+    confirm:
+      topic: orderConfirmTopic
+      tag:
+        confirm: order_confirm
+      consumer:
+        groupname: order_confirm_group
+        callback:
+          group: order_confirm_callback_group
+          topic: orderConfirmCallbackTopic
+          tag: order_confirm_callback
     consumer:
       group:
         name: order_orderTopic_cancel_group

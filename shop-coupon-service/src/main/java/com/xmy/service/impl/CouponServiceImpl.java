@@ -10,8 +10,8 @@ import com.xmy.pojo.ShopCoupon;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
 /**
- *
  * @author xmy
  * @date 2019-10-09 21:44
  */
@@ -35,7 +35,7 @@ public class CouponServiceImpl implements ICouponService {
     public Result updateCouponStatus(ShopCoupon coupon) {
 
         if (coupon == null || coupon.getCouponId() == null) {
-            CastException.cast(ShopCode.SHOP_REQUEST_PARAMETER_VALID);
+            return new Result(ShopCode.SHOP_FAIL.getSuccess(), ShopCode.SHOP_REQUEST_PARAMETER_VALID.getMessage());
         }
         Result result;
         try {

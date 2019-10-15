@@ -50,10 +50,13 @@ public enum ShopCode {
     SHOP_USER_NO_EXIST(false, 30002, "用户不存在"),
     SHOP_USER_MONEY_REDUCE_FAIL(false, 30003, "余额扣减失败"),
     SHOP_USER_MONEY_REDUCE_ALREADY(true, 30004, "订单已退过款"),
+    SHOP_USER_MONEY_REDUCE_SUCCESS(true, 30005, "余额扣减成功"),
 
     SHOP_COUPON_NO_EXIST(false, 40001, "优惠券不存在"),
     SHOP_COUPON_INVALIED(false, 40002, "优惠券不合法"),
     SHOP_COUPON_USE_FAIL(false, 40003, "优惠券使用失败"),
+    SHOP_COUPON_USE_SUCCESS(true, 40004, "优惠券使用成功"),
+    SHOP_COUPON_NO_USE(true, 40005, "未使用优惠券"),
 
     SHOP_MONEY_PAID_LESS_ZERO(false, 50001, "余额不能小于0"),
     SHOP_MONEY_PAID_INVALIS(false, 50002, "余额非法"),
@@ -64,9 +67,10 @@ public enum ShopCode {
 
     SHOP_PAYMENT_NOT_FOUND(false, 70001, "订单未找到"),
     SHOP_PAYMENT_IS_PAID(false, 70002, "订单已支付"),
-    SHOP_PAYMENT_PAY_ERROR(false,70003,"订单支付失败"),
-    SHOP_ORDER_CANCEL_CHECK(false,70004,"订单取消审核"),
-    SHOP_ORDER_CANCEL_ERROR(false,70004,"订单取消失败");
+    SHOP_PAYMENT_PAY_ERROR(false, 70003, "订单支付失败"),
+    SHOP_ORDER_CANCEL_CHECK(false, 70004, "订单取消审核"),
+    SHOP_ORDER_CANCEL_ERROR(false, 70004, "订单取消失败"),
+    SHOP_ORDER_ERROR(false, 70005, "下单失败,请联系相关人员");
 
     Boolean success;
     Integer code;
