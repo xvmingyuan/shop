@@ -282,7 +282,7 @@ public class OrderServiceByMQImpl implements IOrderService {
             CastException.cast(ShopCode.SHOP_ORDER_SHIPPINGFEE_INVALID);
         }
         //4 核算订单总金额是否合法
-        BigDecimal orderAmount = order.getGoodsPrice().multiply(new BigDecimal(order.getGoodsNumber()));
+        BigDecimal orderAmount = order.getGoodsPrice().multiply(BigDecimal.valueOf(order.getGoodsNumber()));
         orderAmount.add(shippingFee);
         if (order.getOrderAmount().compareTo(orderAmount) != 0) {
             CastException.cast(ShopCode.SHOP_ORDERMOUNT_INVALID);
@@ -351,10 +351,10 @@ public class OrderServiceByMQImpl implements IOrderService {
      * @return
      */
     private BigDecimal calculateShippingFee(BigDecimal orderAmount) {
-        if (orderAmount.compareTo(new BigDecimal(100)) == 1) {
+        if (orderAmount.compareTo(BigDecimal.valueOf(100)) == 1) {
             return BigDecimal.ZERO;
         } else {
-            return new BigDecimal(10);
+            return BigDecimal.valueOf(10);
         }
     }
 

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/order")
 public class OrderController {
@@ -18,7 +20,18 @@ public class OrderController {
 
     @PostMapping("/confirm")
     public Result confirmOrder(@RequestBody ShopOrder order) {
-        Result result = orderService.confirmOrder(order);
+        ShopOrder shopOrder = new ShopOrder();
+        shopOrder.setGoodsId(order.getGoodsId());
+        shopOrder.setUserId(order.getUserId());
+        shopOrder.setCouponId(order.getCouponId());
+        shopOrder.setAddress("北京");
+        shopOrder.setGoodsNumber(1);
+        shopOrder.setGoodsPrice(new BigDecimal(1000));
+        shopOrder.setGoodsAmount(new BigDecimal(1000));
+        shopOrder.setShippingFee(BigDecimal.ZERO);
+        shopOrder.setOrderAmount(new BigDecimal(1000));
+        shopOrder.setMoneyPaid(new BigDecimal(100));
+        Result result = orderService.confirmOrder(shopOrder);
         return result;
     }
 

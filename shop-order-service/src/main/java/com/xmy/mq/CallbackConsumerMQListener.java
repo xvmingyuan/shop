@@ -21,9 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.util.StringUtils;
 
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -74,14 +74,14 @@ public class CallbackConsumerMQListener {
     }
 
     class CallbackConsumerMessageListener implements MessageListenerConcurrently {
-
+        // 分布式 下存在问题 应该为 Zookeeper 或者 Redis存储
         private ConcurrentSkipListMap<Long, Integer> localTrans = new ConcurrentSkipListMap<Long, Integer>();
         private ConcurrentSkipListMap<Long, Integer> localTransTrue = new ConcurrentSkipListMap<Long, Integer>();
         private ConcurrentSkipListMap<Long, Integer> localTransFalse = new ConcurrentSkipListMap<Long, Integer>();
 
         @Override
         public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext consumeConcurrentlyContext) {
-            for (MessageExt messageExt : msgs) {
+            for (MessageExt messageExt : msgs)
                 try {
                     // 1 解析消息内容
                     String body = new String(messageExt.getBody(), "UTF-8");
@@ -143,7 +143,6 @@ public class CallbackConsumerMQListener {
                     e.printStackTrace();
                     log.info("确认失败");
                 }
-            }
             return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
         }
 
