@@ -81,7 +81,7 @@ public class CallbackConsumerMQListener {
 
         @Override
         public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext consumeConcurrentlyContext) {
-            for (MessageExt messageExt : msgs)
+            for (MessageExt messageExt : msgs) {
                 try {
                     // 1 解析消息内容
                     String body = new String(messageExt.getBody(), "UTF-8");
@@ -143,6 +143,7 @@ public class CallbackConsumerMQListener {
                     e.printStackTrace();
                     log.info("确认失败");
                 }
+            }
             return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
         }
 
